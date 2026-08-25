@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 
 	printf("device: %s, address: 0x%lx (0x%lx+0x%lx), access %s.\n",
 		device, target, target_aligned, offset,
-			argc >= 4 ? "write" : "read");
+			argc >= 5 ? "write" : "read");
 
 	/* data given? */
 	if (argc >= 4)
