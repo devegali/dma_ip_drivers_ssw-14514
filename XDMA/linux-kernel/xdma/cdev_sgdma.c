@@ -588,14 +588,14 @@ static ssize_t cdev_write_iter(struct kiocb *iocb, struct iov_iter *io)
 {
 #if defined(RHEL_RELEASE_CODE)
         #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-            return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
+            return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, iocb->ki_pos);
         #else
-            return cdev_aio_write(iocb, io->iov, io->nr_segs, io->iov_offset);
+            return cdev_aio_write(iocb, io->iov, io->nr_segs, iocb->ki_pos);
         #endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-        return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
+        return cdev_aio_write(iocb, iter_iov(io), io->nr_segs, iocb->ki_pos);
 #else
-	return cdev_aio_write(iocb, io->iov, io->nr_segs, io->iov_offset);
+	return cdev_aio_write(iocb, io->iov, io->nr_segs, iocb->ki_pos);
 #endif
 }
 
@@ -603,14 +603,14 @@ static ssize_t cdev_read_iter(struct kiocb *iocb, struct iov_iter *io)
 {
 #if defined(RHEL_RELEASE_CODE)
         #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 4))
-            return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
+            return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, iocb->ki_pos);
         #else
-            return cdev_aio_read(iocb, io->iov, io->nr_segs, io->iov_offset);
+            return cdev_aio_read(iocb, io->iov, io->nr_segs, iocb->ki_pos);
         #endif
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-        return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, io->iov_offset);
+        return cdev_aio_read(iocb, iter_iov(io), io->nr_segs, iocb->ki_pos);
 #else
-        return cdev_aio_read(iocb, io->iov, io->nr_segs, io->iov_offset);
+        return cdev_aio_read(iocb, io->iov, io->nr_segs, iocb->ki_pos);
 #endif
 }
 #endif

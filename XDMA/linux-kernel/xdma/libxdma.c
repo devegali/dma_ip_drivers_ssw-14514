@@ -32,6 +32,15 @@
 #include "libxdma_api.h"
 #include "cdev_sgdma.h"
 #include "xdma_thread.h"
+#include "version.h"
+
+#ifdef CONFIG_XDMA_DISABLE_CDEV
+// Define info here to prevent warnings when compiled without CDEV
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Xilinx, Inc.");
+MODULE_DESCRIPTION("Xilinx PCIe DMA library");
+MODULE_VERSION(DRV_MODULE_VERSION);
+#endif
 
 
 /* Module Parameters */
@@ -55,6 +64,33 @@ MODULE_PARM_DESC(desc_blen_max,
 
 #define XDMA_PERF_NUM_DESC 128
 
+
+/* Functions:
+ *	wait_event_interruptible_timeout
+ *	swait_event_interruptible_timeout_exclusive
+ *	wait_event_interruptible
+ *	swait_event_interruptible_exclusive
+ * could return prematurely (-ERESTARTSYS) if interrupted by a signal, this case must be handled by kernel module */
+#define xlx_wait_event_interruptible_timeout(wq, condition, timeout) \
+({\
+	int __ret = 0; \
+	unsigned long expire = timeout + jiffies; \
+	do { \
+		__ret = _xlx_wait_event_interruptible_timeout(wq, condition, \
+						timeout); \
+	} while ((__ret < 0) && (jiffies < expire)); \
+	__ret; \
+})
+
+#define xlx_wait_event_interruptible(wq, condition) \
+({\
+	int __ret = 0; \
+	do { \
+		__ret = _xlx_wait_event_interruptible(wq, condition); \
+	} while (__ret < 0); \
+	__ret; \
+})
+
 /* Kernel version adaptative code */
 #if HAS_SWAKE_UP_ONE
 /* since 4.18, using simple wait queues is not recommended
@@ -62,31 +98,21 @@ MODULE_PARM_DESC(desc_blen_max,
  * and will likely be removed in future kernel versions
  */
 #define xlx_wake_up	swake_up_one
-#define xlx_wait_event_interruptible_timeout \
+#define _xlx_wait_event_interruptible_timeout \
 			swait_event_interruptible_timeout_exclusive
-#define xlx_wait_event_interruptible \
+#define _xlx_wait_event_interruptible \
 			swait_event_interruptible_exclusive
 #elif HAS_SWAKE_UP
 #define xlx_wake_up	swake_up
-#define xlx_wait_event_interruptible_timeout \
+#define _xlx_wait_event_interruptible_timeout \
 			swait_event_interruptible_timeout
-#define xlx_wait_event_interruptible \
+#define _xlx_wait_event_interruptible \
 			swait_event_interruptible
 #else
 #define xlx_wake_up	wake_up_interruptible
-/* wait_event_interruptible_timeout() could return prematurely (-ERESTARTSYS)
- * if it is interrupted by a signal */
-#define xlx_wait_event_interruptible_timeout(wq, condition, timeout) \
-({\
-	int __ret = 0;  \
-	unsigned long expire = timeout + jiffies; \
-	do { \
-		__ret = wait_event_interruptible_timeout(wq, condition, \
-							timeout); \
-	} while ((__ret < 0) && (jiffies < expire)); \
-       __ret; \
-})
-#define xlx_wait_event_interruptible \
+#define _xlx_wait_event_interruptible_timeout \
+			wait_event_interruptible_timeout
+#define _xlx_wait_event_interruptible \
 			wait_event_interruptible
 #endif
 
@@ -4547,6 +4573,7 @@ free_xdev:
 	kfree(xdev);
 	return NULL;
 }
+EXPORT_SYMBOL(xdma_device_open);
 
 void xdma_device_close(struct pci_dev *pdev, void *dev_hndl)
 {
@@ -4591,6 +4618,7 @@ void xdma_device_close(struct pci_dev *pdev, void *dev_hndl)
 
 	kfree(xdev);
 }
+EXPORT_SYMBOL(xdma_device_close);
 
 void xdma_device_offline(struct pci_dev *pdev, void *dev_hndl)
 {
@@ -4648,6 +4676,7 @@ void xdma_device_offline(struct pci_dev *pdev, void *dev_hndl)
 
 	pr_info("xdev 0x%p, done.\n", xdev);
 }
+EXPORT_SYMBOL(xdma_device_offline);
 
 void xdma_device_online(struct pci_dev *pdev, void *dev_hndl)
 {
@@ -4696,6 +4725,7 @@ void xdma_device_online(struct pci_dev *pdev, void *dev_hndl)
 	xdma_device_flag_clear(xdev, XDEV_FLAG_OFFLINE);
 	pr_info("xdev 0x%p, done.\n", xdev);
 }
+EXPORT_SYMBOL(xdma_device_online);
 
 int xdma_device_restart(struct pci_dev *pdev, void *dev_hndl)
 {
@@ -4710,6 +4740,7 @@ int xdma_device_restart(struct pci_dev *pdev, void *dev_hndl)
 	pr_info("NOT implemented, 0x%p.\n", xdev);
 	return -EINVAL;
 }
+EXPORT_SYMBOL(xdma_device_restart);
 
 int xdma_user_isr_register(void *dev_hndl, unsigned int mask,
 			   irq_handler_t handler, void *dev)
@@ -4736,6 +4767,7 @@ int xdma_user_isr_register(void *dev_hndl, unsigned int mask,
 
 	return 0;
 }
+EXPORT_SYMBOL(xdma_user_isr_register);
 
 int xdma_user_isr_enable(void *dev_hndl, unsigned int mask)
 {
@@ -4754,6 +4786,7 @@ int xdma_user_isr_enable(void *dev_hndl, unsigned int mask)
 
 	return 0;
 }
+EXPORT_SYMBOL(xdma_user_isr_enable);
 
 int xdma_user_isr_disable(void *dev_hndl, unsigned int mask)
 {
@@ -4771,6 +4804,7 @@ int xdma_user_isr_disable(void *dev_hndl, unsigned int mask)
 
 	return 0;
 }
+EXPORT_SYMBOL(xdma_user_isr_disable);
 
 int engine_addrmode_set(struct xdma_engine *engine, unsigned long arg)
 {
@@ -4798,3 +4832,4 @@ int engine_addrmode_set(struct xdma_engine *engine, unsigned long arg)
 
 	return rv;
 }
+EXPORT_SYMBOL(engine_addrmode_set);
